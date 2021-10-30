@@ -88,6 +88,7 @@ _RESET:	clr INTE
 	mov #isr, IVET
 	clr INTS
 ; 4) Inicializar as variáveis internas do kernel
+	mov #-1, bufferTec
 ; 5) Inicializar o teclado zerando o byte de estado (TECST, endereço 65498)
 	clr TECST
 ; 6) Inicializar o timer
@@ -99,6 +100,13 @@ _RESET:	clr INTE
 ; 9) Retornar para o programa de aplicação com um desvio para o endereço _APP da memória
 	jmp		_APP
 
+;------------------------------------------------------------------------------
+; VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  
+;------------------------------------------------------------------------------
+	org 800 
+		auxTime: dw  0	 ;; armazena os milisegundos	
+		bufferTec: dw 0 ;; armazena a tecla lida pelo ISR
+		timer: dw 0 ;; armazena os segundos
 ;------------------------------------------------------------------------------
 ; INTERRUPÇAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO 
 ;------------------------------------------------------------------------------
@@ -168,8 +176,13 @@ tratador: 	INC auxTime
 ; - Se há tecla, o valor em R0 será zero; 
 ; - Se não há tecla, o valor em R0 será um valor qualquer diferente de zero. 
 ;------------------------------------------------------------------------------
-_kbhit:
-		rts		r7
+_kbhit:		mov		#1, r0
+		tst		bufferTec ;; Verificar se é positivo ou nulo
+		BMI 		kbhit_ret
+		cmp 		bufferTec, #127 ;; Verificar se está dentro da tabela ASCII
+		BGT		kbhit_ret
+		mov		#0, r0  ;; Se passar nas 2 verificações, é uma tecla. 
+kbhit_ret:	rts		r7
 		
 ;		
 ;------------------------------------------------------------------------------
@@ -311,10 +324,7 @@ limpavisor:
 
 
 org _APP
-		vol: mov bufferTec, 65531
-		mov timer, r1
-		jmp vol
+		mov #200, bufferTec
+		jsr r7, _kbhit
+		hlt
 
-		auxTime: dw  0		
-		bufferTec: dw 1
-		timer: dw 0 
