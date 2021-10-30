@@ -90,6 +90,7 @@ _RESET:	clr INTE
 ; 4) Inicializar as variáveis internas do kernel
 	mov #-1, bufferTec
 	mov #0, posCursor
+	mov #0, blinkCursor
 ; 5) Inicializar o teclado zerando o byte de estado (TECST, endereço 65498)
 	clr TECST
 ; 6) Inicializar o timer
@@ -110,7 +111,7 @@ _RESET:	clr INTE
 		timer: dw 0 		;; armazena os segundos
 		posCursor: dw 0 	;; armazena posição do cursor
 		charCursor: dw  0 	;; armazena o caracter atual do cursor
-		timeCursor: dw  0 	;; Variavel booleana para trocar de char no cursor ( getchar )
+		blinkCursor: dw  0 	;; Variavel booleana para trocar de char no cursor ( getchar )
 ;------------------------------------------------------------------------------
 ; INTERRUPÇAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO 
 ;------------------------------------------------------------------------------
@@ -165,7 +166,14 @@ ISRtim:
 		rts r7
 
 tratador: 	INC auxTime
-		cmp auxTime, #10
+		tst piscaCursor
+		BEQ pulaBlink
+		cmp auxTime, #5
+		BEQ blink
+		cmp auxTime, #0
+		BNE pulaBlink
+blink:		jsr r7, piscaCursor
+pulaBlink:	cmp auxTime, #10
 		BNE not_equal
 		mov #0, auxTime
 		INC timer
@@ -186,16 +194,12 @@ end_cursor: 	rts r7
 
 ;------------------------------------------------------------------------------
 
-piscaCursor: 	cmp auxTime, #5
-		BEQ troca
-		tst auxTime
-		BNE end_pisca
-troca:		mov charCursor, r4
+piscaCursor:	mov charCursor, r4
 		mov posCursor, r3
 		mov 65500(r3), charCursor
 		mov posCursor, r3
 		mov r4, 65500(r3)
-end_pisca:	rts r7
+		rts r7
 		
 		
 ;------------------------------------------------------------------------------
@@ -232,11 +236,11 @@ kbhit_ret:	rts		r7
 _getchar:	
 		mov #-1, bufferTec ;; Limpando o buffer
 		mov #95, charCursor ;; inicializando
-		mov #0, timeCursor ;; inicializando
-loop_getchar:	jsr r7,piscaCursor
-		jsr r7,_kbhit  ;; Verificando se há tecla
+		mov #1, blinkCursor ;;inicializando
+loop_getchar:	jsr r7,_kbhit  ;; Verificando se há tecla
 		tst r0
 		BNE loop_getchar
+		mov #0, blinkCursor
 		mov bufferTec, r0   ;; Movendo a tecla para r0		
 		rts		r7
 		
