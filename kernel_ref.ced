@@ -89,6 +89,7 @@ _RESET:	clr INTE
 	clr INTS
 ; 4) Inicializar as variáveis internas do kernel
 	mov #-1, bufferTec
+	mov #0, posCursor
 ; 5) Inicializar o teclado zerando o byte de estado (TECST, endereço 65498)
 	clr TECST
 ; 6) Inicializar o timer
@@ -104,9 +105,12 @@ _RESET:	clr INTE
 ; VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  VARIÁVEIS  
 ;------------------------------------------------------------------------------
 	org 800 
-		auxTime: dw  0	 ;; armazena os milisegundos	
-		bufferTec: dw 0 ;; armazena a tecla lida pelo ISR
-		timer: dw 0 ;; armazena os segundos
+		auxTime: dw  0		 ;; armazena os milisegundos	
+		bufferTec: dw 0 	;; armazena a tecla lida pelo ISR
+		timer: dw 0 		;; armazena os segundos
+		posCursor: dw 0 	;; armazena posição do cursor
+		charCursor: dw  0 	;; armazena o caracter atual do cursor
+		timeCursor: dw  0 	;; Variavel booleana para trocar de char no cursor ( getchar )
 ;------------------------------------------------------------------------------
 ; INTERRUPÇAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO 
 ;------------------------------------------------------------------------------
@@ -148,7 +152,7 @@ ISRtec:
 		tst		TECST				; if (Tecla está disponivel?) {
 		beq		ISRtec1
 		mov 		TECDT, bufferTec
-		clr 	TECST		
+		clr 		TECST		
 
 	
 ISRtec1:	
@@ -166,6 +170,33 @@ tratador: 	INC auxTime
 		mov #0, auxTime
 		INC timer
 		not_equal: rts r7
+		
+;------------------------------------------------------------------------------
+; CURSOR CURSOR CURSOR CURSOR CURSOR CURSOR CURSOR CURSOR CURSOR CURSOR CURSOR 
+; Parâmetros: Posição nova do cursor em r4
+; Atualiza a função do cursor
+;------------------------------------------------------------------------------
+
+cursor:		tst r4
+		BMI end_cursor
+		cmp r4, #21
+		BGE end_cursor
+		mov r4, posCursor
+end_cursor: 	rts r7
+
+;------------------------------------------------------------------------------
+
+piscaCursor: 	cmp auxTime, #5
+		BEQ troca
+		tst auxTime
+		BNE end_pisca
+troca:		mov charCursor, r4
+		mov posCursor, r3
+		mov 65500(r3), charCursor
+		mov posCursor, r3
+		mov r4, 65500(r3)
+end_pisca:	rts r7
+		
 		
 ;------------------------------------------------------------------------------
 ; Função através da qual pode-se solicitar ao kernel a informação sobre a existência de tecla digitada.
@@ -200,7 +231,10 @@ kbhit_ret:	rts		r7
 ;------------------------------------------------------------------------------
 _getchar:	
 		mov #-1, bufferTec ;; Limpando o buffer
-loop_getchar:	jsr r7,_kbhit  ;; Verificando se há tecla
+		mov #95, charCursor ;; inicializando
+		mov #0, timeCursor ;; inicializando
+loop_getchar:	jsr r7,piscaCursor
+		jsr r7,_kbhit  ;; Verificando se há tecla
 		tst r0
 		BNE loop_getchar
 		mov bufferTec, r0   ;; Movendo a tecla para r0		
@@ -328,8 +362,7 @@ limpavisor:
 	RTS R7
 
 
-org _APP
-		vol: jsr r7, _getchar
-		br vol
+org _APP	
+		 jsr r7, _getchar
 		hlt
 
