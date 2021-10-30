@@ -99,7 +99,66 @@ _RESET:	clr INTE
 ; 9) Retornar para o programa de aplicação com um desvio para o endereço _APP da memória
 	jmp		_APP
 
-;		
+;------------------------------------------------------------------------------
+; INTERRUPÇAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO 
+;------------------------------------------------------------------------------
+
+
+org 900
+ISR:
+		mov		r0,-(r6)	; Salva registradores
+		mov		r1,-(r6)
+		mov		r2,-(r6)
+		mov		r3,-(r6)
+		mov		r4,-(r6)
+		mov		r5,-(r6)
+
+		mov		INTS,r0		; Verifica se é INT do TECLADO
+		and		#2,r0
+		beq		ISR2
+		jsr		r7,ISRtec	; Tratamento da INT do TECLADO
+		and		#hFFFD,INTS	; Desliga bit de INT TECLADO
+ISR2:		mov		INTS,r0		; Verifica se é INT do TIMER
+		and		#1,r0
+		beq		ISR3
+		jsr		r7,ISRtim	; Tratamento da INT do TIMER
+		and		#hFFFE,INTS	; Desliga bit de INT TIMER
+ISR3:
+
+		mov		(r6)+,r5	; Retorna os registradores da pilha
+		mov		(r6)+,r4
+		mov		(r6)+,r3
+		mov		(r6)+,r2
+		mov		(r6)+,r1
+		mov		(r6)+,r0
+
+		rti					; Return From Interrupt
+
+
+; Tratamento das interrupções de teclado
+ISRtec:
+		tst		TECST				; if (Tecla está disponivel?) {
+		beq		ISRtec1
+		mov 		TECDT, bufferTec
+		clr 	TECST		
+
+	
+ISRtec1:	
+		rts	r7						; }
+		
+
+ISRtim:		
+		jsr r7, tratador
+		
+		rts r7
+
+tratador: 	INC auxTime
+		cmp auxTime, #10
+		BNE not_equal
+		mov #0, auxTime
+		INC timer
+		not_equal: rts r7
+		
 ;------------------------------------------------------------------------------
 ; Função através da qual pode-se solicitar ao kernel a informação sobre a existência de tecla digitada.
 ; A função deve retornar com a informação da existência de tecla, sem aguardar pela digitação de qualquer tecla. 
@@ -207,7 +266,9 @@ _turnon_clock:
 _clr_clock:
 		rts		r7
 
-
+;------------------------------------------------------------------------------
+; LIMPAVISOR LIMPAVISOR LIMPAVISOR LIMPAVISOR LIMPAVISOR LIMPAVISOR LIMPAVISOR 
+;------------------------------------------------------------------------------
 ; Limpa o visor, forma mais eficiente de fazer isso segundo o livro Fundamentos de arquitetura de computadores  do professor Raul Weber
 limpavisor: 
 	CLR 65500
@@ -247,61 +308,6 @@ limpavisor:
 	CLR 65534 
 	CLR 65535 
 	RTS R7
-
-org 900
-ISR:
-		mov		r0,-(r6)	; Salva registradores
-		mov		r1,-(r6)
-		mov		r2,-(r6)
-		mov		r3,-(r6)
-		mov		r4,-(r6)
-		mov		r5,-(r6)
-
-		mov		INTS,r0		; Verifica se é INT do TECLADO
-		and		#2,r0
-		beq		ISR2
-		jsr		r7,ISRtec	; Tratamento da INT do TECLADO
-		and		#hFFFD,INTS	; Desliga bit de INT TECLADO
-ISR2:		mov		INTS,r0		; Verifica se é INT do TIMER
-		and		#1,r0
-		beq		ISR3
-		jsr		r7,ISRtim	; Tratamento da INT do TIMER
-		and		#hFFFE,INTS	; Desliga bit de INT TIMER
-ISR3:
-
-		mov		(r6)+,r5	; Retorna os registradores da pilha
-		mov		(r6)+,r4
-		mov		(r6)+,r3
-		mov		(r6)+,r2
-		mov		(r6)+,r1
-		mov		(r6)+,r0
-
-		rti					; Return From Interrupt
-
-
-; Tratamento das interrupções de teclado
-ISRtec:
-		tst		TECST				; if (Tecla está disponivel?) {
-		beq		ISRtec1
-		mov 		TECDT, bufferTec
-		clr 	TECST		
-
-	
-ISRtec1:	
-		rts	r7						; }
-		
-
-ISRtim:		
-		jsr r7, tratador
-		
-		rts r7
-
-tratador: 	INC auxTime
-		cmp auxTime, #10
-		BNE not_equal
-		mov #0, auxTime
-		INC timer
-		not_equal: rts r7
 
 
 org _APP
