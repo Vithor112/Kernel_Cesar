@@ -198,7 +198,12 @@ kbhit_ret:	rts		r7
 ; Esse símbolo deve ser alternado com o caractere que estiver sendo apresentado nessa posição.
 ; Essa alternância deve ter uma periodicidade tal que cada símbolo permaneça no visor por 500ms. 
 ;------------------------------------------------------------------------------
-_getchar:
+_getchar:	
+		mov #-1, bufferTec ;; Limpando o buffer
+loop_getchar:	jsr r7,_kbhit  ;; Verificando se há tecla
+		tst r0
+		BNE loop_getchar
+		mov bufferTec, r0   ;; Movendo a tecla para r0		
 		rts		r7
 		
 ;		
@@ -324,7 +329,7 @@ limpavisor:
 
 
 org _APP
-		mov #200, bufferTec
-		jsr r7, _kbhit
+		vol: jsr r7, _getchar
+		br vol
 		hlt
 
