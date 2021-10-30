@@ -168,11 +168,7 @@ ISRtim:
 tratador: 	INC auxTime
 		tst piscaCursor
 		BEQ pulaBlink
-		cmp auxTime, #5
-		BEQ blink
-		cmp auxTime, #0
-		BNE pulaBlink
-blink:		jsr r7, piscaCursor
+		jsr r7, piscaCursor
 pulaBlink:	cmp auxTime, #10
 		BNE not_equal
 		mov #0, auxTime
@@ -194,12 +190,17 @@ end_cursor: 	rts r7
 
 ;------------------------------------------------------------------------------
 
-piscaCursor:	mov charCursor, r4
+piscaCursor:	
+		cmp auxTime, #5
+		BEQ pisca
+		cmp auxTime, #0
+		BNE end_piscaCursor
+pisca:		mov charCursor, r4
 		mov posCursor, r3
 		mov 65500(r3), charCursor
 		mov posCursor, r3
 		mov r4, 65500(r3)
-		rts r7
+end_piscaCursor:rts r7
 		
 		
 ;------------------------------------------------------------------------------
