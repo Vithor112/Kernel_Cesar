@@ -166,7 +166,7 @@ ISRtim:
 		rts r7
 
 tratador: 	INC auxTime
-		tst piscaCursor
+		tst blinkCursor		;; Verifica se a variável booleana blinkCursor está ligada
 		BEQ pulaBlink
 		jsr r7, piscaCursor
 pulaBlink:	cmp auxTime, #10
@@ -188,14 +188,17 @@ cursor:		tst r4
 		mov r4, posCursor
 end_cursor: 	rts r7
 
-;------------------------------------------------------------------------------
-
+;-------------------------------------------------------------------------------------
+; PISCACURSOR PISCACURSOR PISCACURSOR PISCACURSOR PISCACURSOR PISCACURSOR PISCACURSOR
+; Faz com que o cursor pisque, alterando entre '_' e o caracter atual do visor a uma
+; taxa de 500ms, quem chama essa função é o sistema de interrupção do timer
+;-------------------------------------------------------------------------------------
 piscaCursor:	
-		cmp auxTime, #5
+		cmp auxTime, #5		;; Verifica se passou 500ms 
 		BEQ pisca
 		cmp auxTime, #0
-		BNE end_piscaCursor
-pisca:		mov charCursor, r4
+		BNE end_piscaCursor	
+pisca:		mov charCursor, r4	;; Troca o caracter no visor por _ ou pelo caracter que estava no visor ( tirando o _ da tela )
 		mov posCursor, r3
 		mov 65500(r3), charCursor
 		mov posCursor, r3
@@ -242,7 +245,11 @@ loop_getchar:	jsr r7,_kbhit  ;; Verificando se há tecla
 		tst r0
 		BNE loop_getchar
 		mov #0, blinkCursor
-		mov bufferTec, r0   ;; Movendo a tecla para r0		
+		cmp charCursor, #95
+		BEQ end_getchar
+		mov posCursor, r3
+		mov charCursor, 65500(r3) 
+end_getchar:	mov bufferTec, r0   ;; Movendo a tecla para r0		
 		rts		r7
 		
 ;		
