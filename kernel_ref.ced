@@ -182,9 +182,9 @@ pulaBlink:	cmp auxTime, #10
 ;------------------------------------------------------------------------------
 
 cursor:		tst r4
-		BMI end_cursor
-		cmp r4, #21
-		BGE end_cursor
+		BMI end_cursor		;; Se for negativo, valor inválido, não mexe
+		cmp r4, #21		;; Se maior que 21, fora da área de texto, não mexe
+		BGT end_cursor
 		mov r4, posCursor
 end_cursor: 	rts r7
 
@@ -216,11 +216,11 @@ end_piscaCursor:rts r7
 ; - Se não há tecla, o valor em R0 será um valor qualquer diferente de zero. 
 ;------------------------------------------------------------------------------
 _kbhit:		mov		#1, r0
-		tst		bufferTec ;; Verificar se é positivo ou nulo
+		tst		bufferTec	 ;; Verificar se é positivo ou nulo
 		BMI 		kbhit_ret
 		cmp 		bufferTec, #127 ;; Verificar se está dentro da tabela ASCII
 		BGT		kbhit_ret
-		mov		#0, r0  ;; Se passar nas 2 verificações, é uma tecla. 
+		mov		#0, r0 		 ;; Se passar nas 2 verificações, é uma tecla. 
 kbhit_ret:	rts		r7
 		
 ;		
@@ -238,18 +238,20 @@ kbhit_ret:	rts		r7
 ; Essa alternância deve ter uma periodicidade tal que cada símbolo permaneça no visor por 500ms. 
 ;------------------------------------------------------------------------------
 _getchar:	
-		mov #-1, bufferTec ;; Limpando o buffer
-		mov #95, charCursor ;; inicializando
-		mov #1, blinkCursor ;;inicializando
-loop_getchar:	jsr r7,_kbhit  ;; Verificando se há tecla
+		mov r3,-(r6) 		;; Salva Registrador usado
+		mov #-1, bufferTec 	;; Limpando o buffer
+		mov #95, charCursor 	;; inicializando
+		mov #1, blinkCursor 	;; Liga a função que piscaCursor
+loop_getchar:	jsr r7,_kbhit  		;; Verificando se há tecla
 		tst r0
 		BNE loop_getchar
-		mov #0, blinkCursor
-		cmp charCursor, #95
+		mov #0, blinkCursor	;; Desliga a função que pisca cursor
+		cmp charCursor, #95	;; Caso '_' esteja na tela quando a função parou
 		BEQ end_getchar
-		mov posCursor, r3
+		mov posCursor, r3	;; Tira-o da tela e coloca o char que estava ali
 		mov charCursor, 65500(r3) 
-end_getchar:	mov bufferTec, r0   ;; Movendo a tecla para r0		
+end_getchar:	mov bufferTec, r0   	;; Movendo a tecla para r0	
+		mov (r6)+, r3		;; Carrega Registrador usado
 		rts		r7
 		
 ;		
@@ -265,6 +267,40 @@ end_getchar:	mov bufferTec, r0   ;; Movendo a tecla para r0
 ; - Se houve algum erro ou informação inválida de entrada, o valor em R0 será um valor qualquer diferente de zero. 
 ;------------------------------------------------------------------------------
 _putchar:
+		mov		r4,-(r6)		;; Salva Registrador usado
+		and 		#h81,INTE		;; Desliga as interrupções de teclado ( pois vou usar Buffertec por alguns momentinhos
+		mov		r5, bufferTec		;; Move para o bufferTec (para chamar kbhit)
+		jsr 		r7, _kbhit		;; Chama kbhit para verificar a tecla
+		mov		#h83, INTE		;; Liga as interrupções de teclado
+		tst 		r0			;; Se r0 != 0 então tecla inválida termina putchar
+		BNE		end_putchar		
+		cmp		r5, #h0d		;; Se tecla == carriage return, vai pro tratamento especial
+		BEQ		carriage_ret
+		cmp		r5, #h08		;; Se tecla == backspace, vai pro tratamento especial
+		BEQ 		backSpace_ret
+		cmp		r5,#h7a			;; Se tecla maior que h7a então tecla inválida (Kbhit considera válido até h7f )
+		BGT		end_putchar
+		mov		poscursor, r4		
+		mov		r5, 65500(r4)		;; Coloca tecla na atual posição do cursor
+		add		#1, r4			;; Soma um a posiçao do cursor e a atualiza chamando a função cursor
+		jsr		r7,cursor
+		mov 		(r6)+,r4		;; Resgata registrador
+		rts 		r7
+
+
+end_putchar:	mov 		#1, r0			;; Código de erro!
+		mov 		(r6)+,r4		;; Resgata registrador
+		rts 		r7
+
+backSpace_ret:	mov		posCursor,r4
+		sub		#1, r4			;; Subtrai um da posição do cursor e a atualiza!
+		jsr 		r7,cursor
+		mov 		(r6)+,r4		;; Resgata registrador
+		rts 		r7
+
+carriage_ret:	mov 		#0,r4			;; Zera a posição do cursor!
+		jsr 		r7,cursor
+		mov 		(r6)+,r4		;; Resgata registrador
 		rts		r7
 		
 ;		
@@ -375,6 +411,15 @@ limpavisor:
 
 
 org _APP	
-		 jsr r7, _getchar
+		mov #10, r4
+		mov #10, r2
+		mov #10, r3
+		clr r1
+vol:		add #1, r1
+		mov #49,r5
+		jsr r7,	_putchar
+		cmp r1, #5
+		blt vol
+		jsr r7, _getchar
 		hlt
 
