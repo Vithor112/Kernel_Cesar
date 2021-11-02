@@ -380,6 +380,7 @@ loop_getchar:	jsr r7,_kbhit  		;; Verificando se há tecla
 		mov charCursor, 65500(r3) 
 end_getchar:	mov bufferTec, r0   	;; Movendo a tecla para r0	
 		mov (r6)+, r3		;; Carrega Registrador usado
+		mov 		#-1, bufferTec
 		rts		r7
 		
 ;		
@@ -399,6 +400,7 @@ _putchar:
 		and 		#h81,INTE		;; Desliga as interrupções de teclado ( pois vou usar Buffertec por alguns momentinhos
 		mov		r5, bufferTec		;; Move para o bufferTec (para chamar kbhit)
 		jsr 		r7, _kbhit		;; Chama kbhit para verificar a tecla
+		mov 		#-1, bufferTec
 		mov		#h83, INTE		;; Liga as interrupções de teclado
 		tst 		r0			;; Se r0 != 0 então tecla inválida termina putchar
 		BNE		end_putchar		
