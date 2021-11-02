@@ -89,8 +89,10 @@ _RESET:	clr INTE
 	clr INTS
 ; 4) Inicializar as variáveis internas do kernel
 	mov #-1, bufferTec
-	mov #0, posCursor
-	mov #0, blinkCursor
+	clr posCursor
+	clr blinkCursor
+	mov #810, ptrVar
+	jsr r7,clr_var
 ; 5) Inicializar o teclado zerando o byte de estado (TECST, endereço 65498)
 	clr TECST
 ; 6) Inicializar o timer
@@ -111,14 +113,19 @@ _RESET:	clr INTE
 		posCursor: dw 0 	;; armazena posição do cursor
 		charCursor: dw  0 	;; armazena o caracter atual do cursor
 		blinkCursor: dw  0 	;; Variavel booleana para trocar de char no cursor ( getchar )
-		clockZero: dw 3		;; Variavel booleana para ligar o relogio 0
-		clockOne: dw 2		;; Variavel booleana para ligar o relogio 1
-		secondsZero: dw 0 		;; Segundos relógio 0
+		clockZero: dw 0		;; Variavel booleana para ligar o relogio 0
+		clockOne: dw 0		;; Variavel booleana para ligar o relogio 1
+		secondsZero: dw 0	;; Segundos relógio 0
 		secondsTotalZero: dw 0	;; Segundos totais do relogio 0
-		minutesZero: dw 0		;; Minutos relogio 0
-		secondsOne: dw 0
-		secondsTotalOne: dw 0
-		minutesOne: dw 0 
+		minutesZero: dw 0	;; Minutos relogio 0
+		secondsOne: dw 0	;; Segundos relogio 1
+		secondsTotalOne: dw 0	;; Segundos totais do relogio 1
+		minutesOne: dw 0 	;; Minutos relogio 1
+		ptrSec: dw 0
+		ptrSecTotal:dw 0
+		ptrMinutes: dw 0
+		display: dw 0
+		ptrVar: dw 0
 ;------------------------------------------------------------------------------
 ; INTERRUPÇAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO INTERRUPCAO 
 ;------------------------------------------------------------------------------
@@ -159,11 +166,39 @@ ISR3:
 ISRtec:
 		tst		TECST				; if (Tecla está disponivel?) {
 		beq		ISRtec1
+		cmp		TECDT, #44
+		BEQ		clockZeroVis
+		cmp 		TECDT, #60
+		BEQ 		clockZeroVis
+		cmp 		TECDT, #46
+		BEQ		clockOneVis
+		cmp 		TECDT, #62
+		BEQ		clockOneVis
 		mov 		TECDT, bufferTec		;; A coloca no buffer
-		clr 		TECST				;; E zera status do teclado
+		br		ISRtec1
+		
+clockOneVis:	mov		clockOne, r0
+		and		#h01, r0
+		BEQ		turnOnOne
+		and		#hFFFE, clockOne
+		jsr		r7, limpaClockOne
+		br		ISRtec1
+turnOnOne:	or		#h0001, clockOne
+		br		ISRtec1	
+clockZeroVis:	mov		clockZero, r0
+		and		#h01, r0
+		BEQ		turnOnZero
+		and		#hFFFE, clockZero
+		clr 		65524
+		clr 		65525
+		clr 		65526
+		clr 		65527
+		clr 		65528
+		br		ISRtec1
+turnOnZero:	or		#h0001, clockZero
+		br		ISRtec1
 
-	
-ISRtec1:	
+ISRtec1:	clr 	TECST
 		rts	r7						; }
 		
 
@@ -217,9 +252,7 @@ drawClockOne:	mov clockOne, r1
 		ptrSecOne: dw 820
 end_tim:	rts r7
 
-ptrSec: dw 0
-ptrSecTotal:dw 0
-ptrMinutes: dw 0
+
 
 manageTime:	mov ptrSec, r1
 		mov ptrSecTotal, r2
@@ -237,7 +270,7 @@ manageTime:	mov ptrSec, r1
 end_manageTime: rts r7
 		
 		
-display: dw 0 		
+		
 drawNumbers:
 		clr display
 		mov ((r5)+),r0
@@ -253,7 +286,21 @@ less_num:	add #48, r0
 		INC r1
 		mov r0, 65500(r1)
 		rts r5
-		
+
+limpaClockOne:	clr		65531
+		clr 		65532
+		clr 		65533
+		clr 		65534
+		clr		65535
+		rts r7
+
+clr_var:	clr r1
+		mov ptrVar,r0
+loop_clr:	clr (r0)+
+		INC r1
+		cmp r1, #6
+		BNE loop_clr	
+		rts r7
 		
 		
 ;------------------------------------------------------------------------------
@@ -528,14 +575,4 @@ limpavisor:
 	CLR 65535 
 	RTS R7
 
-
-org _APP	
-		mov #10, r4
-		mov #10, r2
-		mov #10, r3
-		clr r5
-		clr r1
-vol:		jsr r7,_get_clock_time
-		br vol
-		hlt
-
+		
